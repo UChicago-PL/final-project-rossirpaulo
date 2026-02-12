@@ -1,1 +1,450 @@
-hello, world
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Final Project Proposal: HaskProto</title>
+        <style>
+            body {
+                font-family: Georgia, "Times New Roman", serif;
+                max-width: 750px;
+                margin: 2em auto;
+                line-height: 1.6;
+                color: #222;
+            }
+            h1 {
+                font-size: 1.6em;
+                border-bottom: 2px solid #333;
+                padding-bottom: 0.3em;
+            }
+            h2 {
+                font-size: 1.25em;
+                margin-top: 1.5em;
+            }
+            h3 {
+                font-size: 1.05em;
+                margin-top: 1.2em;
+            }
+            code,
+            pre {
+                font-family: "Courier New", monospace;
+                background: #f4f4f4;
+                padding: 0.15em 0.3em;
+                border-radius: 3px;
+            }
+            pre {
+                padding: 0.8em 1em;
+                overflow-x: auto;
+                border: 1px solid #ddd;
+            }
+            table {
+                border-collapse: collapse;
+                margin: 1em 0;
+                width: 100%;
+            }
+            th,
+            td {
+                border: 1px solid #ccc;
+                padding: 0.4em 0.7em;
+                text-align: left;
+            }
+            th {
+                background: #f0f0f0;
+            }
+            .meta {
+                color: #666;
+                font-size: 0.95em;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>HaskProto: A Schema-Driven Binary Serialization System</h1>
+
+        <p class="meta">
+            CMSC 22300 &mdash; Functional Programming &mdash; Winter 2026<br />
+            Paulo R. Rodrigues &mdash; Solo Project
+        </p>
+
+        <h2>Overview</h2>
+
+        <p>
+            <strong>HaskProto</strong> is a simplified, Haskell-native take on
+            the ideas behind
+            <a href="https://protobuf.dev/">Protocol Buffers</a>. The system
+            provides a human-readable schema language for defining structured
+            message types, a parser that compiles schemas into an internal AST,
+            a binary encoder/decoder that serializes and deserializes dynamic
+            values according to those schemas, and a schema evolution engine
+            that can diff two schema versions and determine whether they are
+            wire-compatible.
+        </p>
+
+        <p>
+            I've been wanting to write something like this for some time, and it
+            will allow me to exercise a broad range of the functional
+            programming concepts introduced in this class; notably, parser
+            combinators, algebraic data types, type classes, monad transformers,
+            foldable/traversable, monoids, and property-based testing.
+        </p>
+
+        <h2>Schema Language</h2>
+
+        <p>
+            Users write <code>.hproto</code> files in a deliberately simple
+            format. A schema consists of one or more
+            <em>message</em> definitions, each containing typed, optionally
+            tagged fields:
+        </p>
+
+        <pre>
+message Person {
+  name: string          @1
+  age: int32            @2
+  email: optional string @3
+  addresses: repeated Address @4
+}
+
+message Address {
+  street: string  @1
+  city: string    @2
+  zip: int32      @3
+}
+</pre
+        >
+
+        <p>
+            Supported primitive types will include <code>int32</code>,
+            <code>int64</code>, <code>uint32</code>, <code>uint64</code>,
+            <code>bool</code>, <code>string</code>, <code>bytes</code>, and
+            <code>double</code>. Fields can be qualified as
+            <code>optional</code> or <code>repeated</code> (defaulting to
+            required). The <code>@n</code> tag annotations assign stable numeric
+            identifiers used in the wire format, mirroring the role field
+            numbers play in Protocol Buffers for forward/backward compatibility.
+        </p>
+
+        <h2>Architecture</h2>
+
+        <h3>1. Schema Parser (<code>HaskProto.Parser</code>)</h3>
+
+        <p>
+            The schema language is parsed using
+            <code>Text.ParserCombinators.ReadP</code>, the parser combinator
+            library covered in Chapters 19&ndash;20. The parser produces a
+            strongly-typed AST:
+        </p>
+
+        <pre>
+data Schema = Schema [MessageDef]
+
+data MessageDef = MessageDef
+  { msgName   :: String
+  , msgFields :: [FieldDef]
+  }
+
+data FieldDef = FieldDef
+  { fieldName     :: String
+  , fieldType     :: FieldType
+  , fieldModifier :: Modifier
+  , fieldTag      :: Int
+  }
+
+data FieldType
+  = PrimType PrimTy
+  | RefType String        -- reference to another message
+
+data PrimTy = TInt32 | TInt64 | TUInt32 | TUInt64
+            | TBool | TString | TBytes | TDouble
+
+data Modifier = Required | Optional | Repeated
+</pre
+        >
+
+        <p>
+            The parser leverages applicative style (<code>&lt;$&gt;</code>,
+            <code>&lt;*&gt;</code>, <code>*&gt;</code>, <code>&lt;*</code>),
+            <code>munch</code>/<code>munch1</code> for efficiency, and
+            <code>(&lt;++)</code> for left-biased alternatives, all as discussed
+            in the course material.
+        </p>
+
+        <h3>2. Schema Validation (<code>HaskProto.Validate</code>)</h3>
+
+        <p>
+            After parsing, the schema undergoes validation: checking for
+            duplicate message names, duplicate field names within a message,
+            duplicate or missing tags, unresolved type references, and circular
+            required-field references. Validation runs in an error-accumulating
+            monad (<code>ExceptT [ValidationError] Identity</code>) and uses
+            <code>Traversable</code> to walk the schema AST, collecting errors
+            via a monoid.
+        </p>
+
+        <h3>3. Dynamic Values (<code>HaskProto.Value</code>)</h3>
+
+        <p>
+            Since Haskell's type system does not allow us to generate new types
+            at runtime, HaskProto works with a dynamic value representation:
+        </p>
+
+        <pre>
+data Value
+  = VInt32 Int32
+  | VInt64 Int64
+  | VUInt32 Word32
+  | VUInt64 Word64
+  | VBool Bool
+  | VString Text
+  | VBytes ByteString
+  | VDouble Double
+  | VMessage [(String, Value)]
+  | VRepeated [Value]
+  | VNull                       -- for absent optional fields
+</pre
+        >
+
+        <p>
+            A <code>Serializable</code> type class provides
+            <code>encode</code> and <code>decode</code> operations that are
+            schema-aware.
+        </p>
+
+        <h3>4. Binary Wire Format (<code>HaskProto.Wire</code>)</h3>
+
+        <p>
+            The encoding is a tag-length-value (TLV) wire format inspired by
+            Protocol Buffers. Integers use variable-length encoding (varints).
+            The encoder/decoder operates in a monad transformer stack:
+        </p>
+
+        <pre>
+type Encode a = StateT BuilderState (ReaderT Schema (Except EncodeError)) a
+type Decode a = StateT ByteOffset   (ReaderT Schema (Except DecodeError)) a
+</pre
+        >
+
+        <p>
+            This naturally demonstrates the MTL pattern from Chapter 21:
+            <code>StateT</code> tracks the current position in the byte stream,
+            <code>ReaderT</code> provides the schema context needed to interpret
+            tags, and <code>ExceptT</code> handles encoding or decoding errors.
+            Binary output is accumulated using <code>ByteString</code>'s
+            <code>Builder</code> monoid.
+        </p>
+
+        <h3>5. Schema Evolution (<code>HaskProto.Evolution</code>)</h3>
+
+        <p>
+            A key feature is the ability to compare two versions of a schema and
+            determine their compatibility. The evolution engine diffs schemas
+            and classifies changes:
+        </p>
+
+        <pre>
+data Change
+  = FieldAdded FieldDef
+  | FieldRemoved FieldDef
+  | FieldTypeChanged FieldDef FieldDef
+  | FieldModifierChanged FieldDef FieldDef
+  | MessageAdded MessageDef
+  | MessageRemoved MessageDef
+
+data Compatibility
+  = FullyCompatible
+  | BackwardCompatible
+  | ForwardCompatible
+  | Breaking
+</pre
+        >
+
+        <p>
+            Compatibility rules follow the Protocol Buffers conventions: adding
+            an optional field is backward-compatible, removing a required field
+            is breaking, tag reuse with a different type is breaking, etc. The
+            diff operation uses
+            <code>Foldable</code> to reduce schemas to maps keyed by tag number,
+            then compares structurally.
+        </p>
+
+        <h3>6. CLI Tool (<code>HaskProto.Main</code>)</h3>
+
+        <p>
+            The user-facing interface is a command-line tool with the following
+            subcommands:
+        </p>
+
+        <pre>
+haskproto validate schema.hproto          -- parse and validate a schema
+haskproto encode schema.hproto data.json  -- encode JSON data to binary
+haskproto decode schema.hproto data.bin   -- decode binary back to JSON
+haskproto diff old.hproto new.hproto      -- check schema compatibility
+haskproto inspect data.bin                -- hex dump with field annotations
+</pre
+        >
+
+        <p>
+            JSON is used as a convenient human-readable interchange format for
+            constructing and inspecting dynamic values. The
+            <code>aeson</code> library handles JSON parsing, while the
+            <code>.hproto</code> parser is entirely hand-written using
+            <code>ReadP</code>.
+        </p>
+
+        <h2>Concepts Surface Area</h2>
+
+        <table>
+            <tr>
+                <th>Concept</th>
+                <th>Where / How</th>
+            </tr>
+            <tr>
+                <td>Algebraic Data Types</td>
+                <td>Schema AST, Value, Change, wire format tags</td>
+            </tr>
+            <tr>
+                <td>Parser Combinators (<code>ReadP</code>)</td>
+                <td>Hand-written <code>.hproto</code> parser</td>
+            </tr>
+            <tr>
+                <td>Foldable / Traversable</td>
+                <td>Schema validation, evolution diffing, AST walks</td>
+            </tr>
+            <tr>
+                <td>Monad Transformers (MTL)</td>
+                <td>
+                    <code>StateT</code>/<code>ReaderT</code>/<code
+                        >ExceptT</code
+                    >
+                    stack for encode/decode
+                </td>
+            </tr>
+            <tr>
+                <td>Monoids</td>
+                <td>
+                    <code>Builder</code> for binary accumulation, error
+                    accumulation
+                </td>
+            </tr>
+            <tr>
+                <td>Type Classes</td>
+                <td>
+                    <code>Serializable</code>, <code>WireType</code> classes
+                </td>
+            </tr>
+            <tr>
+                <td>QuickCheck</td>
+                <td>Roundtrip property: <code>decode . encode === id</code></td>
+            </tr>
+            <tr>
+                <td>State Monad</td>
+                <td>Byte offset tracking during encoding/decoding</td>
+            </tr>
+            <tr>
+                <td>Reader Monad</td>
+                <td>Schema context threaded through encode/decode</td>
+            </tr>
+        </table>
+
+        <h2>Tiered Goals</h2>
+
+        <h3>Easy (Core deliverable)</h3>
+        <ul>
+            <li>
+                Parse <code>.hproto</code> schemas into an AST using
+                <code>ReadP</code>
+            </li>
+            <li>
+                Validate schemas (duplicate names, unresolved references, tag
+                conflicts)
+            </li>
+            <li>Pretty-print schemas back from the AST</li>
+            <li>
+                Define the dynamic <code>Value</code> type and basic
+                construction/inspection
+            </li>
+        </ul>
+
+        <h3>Medium (Expected deliverable)</h3>
+        <ul>
+            <li>Binary TLV encoding and decoding with varint support</li>
+            <li>Full monad transformer stack for encode/decode</li>
+            <li>JSON <--> Value <--> Binary roundtrip pipeline</li>
+            <li>QuickCheck properties for encode/decode roundtrips</li>
+            <li>
+                CLI tool with <code>validate</code>, <code>encode</code>,
+                <code>decode</code> subcommands
+            </li>
+        </ul>
+
+        <h3>Challenge (Stretch goals)</h3>
+        <ul>
+            <li>Schema evolution: diff two schemas, classify compatibility</li>
+            <li>
+                Cross-version decoding: decode data written with an older schema
+                using a newer one
+            </li>
+            <li>
+                <code>inspect</code> subcommand: annotated hex dump of binary
+                data
+            </li>
+            <li>Nested message encoding with recursive schema support</li>
+        </ul>
+
+        <h2>Resources</h2>
+
+        <ul>
+            <li>Course textbook</li>
+            <li>
+                <a href="https://protobuf.dev/programming-guides/encoding/"
+                    >Protocol Buffers Encoding Guide</a
+                >
+                , specifically the reference for TLV wire format and varint
+                encoding
+            </li>
+            <li>
+                <code>Data.ByteString</code> and
+                <code>Data.ByteString.Builder</code> documentation
+            </li>
+            <li>
+                <code>Text.ParserCombinators.ReadP</code> module documentation
+            </li>
+            <li>
+                Hackage docs for <code>mtl</code>, <code>QuickCheck</code>, and
+                <code>aeson</code>
+            </li>
+            <li>I took the liberty to copy the class website's CSS 😝</li>
+        </ul>
+
+        <h2>Timeline</h2>
+
+        <table>
+            <tr>
+                <th>Week</th>
+                <th>Milestone</th>
+            </tr>
+            <tr>
+                <td>Week 6 (Feb 11)</td>
+                <td>Proposal submission</td>
+            </tr>
+            <tr>
+                <td>Week 7</td>
+                <td>Schema parser + AST + validation</td>
+            </tr>
+            <tr>
+                <td>Week 8</td>
+                <td>Wire format encoder/decoder with MTL stack</td>
+            </tr>
+            <tr>
+                <td>Week 8 (Feb 27)</td>
+                <td>Progress report: working encode/decode pipeline</td>
+            </tr>
+            <tr>
+                <td>Week 9</td>
+                <td>CLI tool, JSON integration, schema evolution</td>
+            </tr>
+            <tr>
+                <td>Week 10 (Mar 13)</td>
+                <td>Final submission: polished code, report, presentation</td>
+            </tr>
+        </table>
+    </body>
+</html>
