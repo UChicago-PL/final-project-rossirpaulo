@@ -1,0 +1,21 @@
+cabal-version:      3.0
+name:               haskproto
+version:            0.1.0.0
+license:            NONE
+build-type:         Simple
+
+common warnings
+    ghc-options: -Wall
+
+executable haskproto
+    import:           warnings
+    main-is:          Main.hs
+    other-modules:    HaskProto.Schema
+                    , HaskProto.Parser
+                    , HaskProto.Validate
+                    , HaskProto.Pretty
+                    , HaskProto.Value
+    hs-source-dirs:   src
+    build-depends:    base ^>=4.18.3.0,
+                      containers
+    default-language: Haskell2010
