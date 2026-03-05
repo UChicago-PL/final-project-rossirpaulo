@@ -1,0 +1,5 @@
+message Person {
+  name: string   @1
+  name: int32    @1
+  addr: Nowhere  @2
+}

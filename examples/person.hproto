@@ -1,0 +1,12 @@
+message Person {
+  name: string          @1
+  age: int32            @2
+  email: optional string @3
+  addresses: repeated Address @4
+}
+
+message Address {
+  street: string  @1
+  city: string    @2
+  zip: int32      @3
+}
