@@ -54,9 +54,34 @@
                 color: #666;
                 font-size: 0.95em;
             }
+            nav.doc-nav {
+                font-family: Georgia, "Times New Roman", serif;
+                font-size: 0.9em;
+                padding: 0.5em 0;
+                margin-bottom: 1em;
+                border-bottom: 1px solid #ddd;
+                color: #555;
+            }
+            nav.doc-nav a {
+                color: #333;
+                text-decoration: none;
+                margin: 0 0.4em;
+            }
+            nav.doc-nav a:hover {
+                text-decoration: underline;
+            }
+            nav.doc-nav .current {
+                font-weight: bold;
+                color: #000;
+            }
         </style>
     </head>
     <body>
+        <nav class="doc-nav">
+            <span class="current">Proposal</span> &middot;
+            <a href="progress.html">Progress Report</a>
+        </nav>
+
         <h1>HaskProto: A Schema-Driven Binary Serialization System</h1>
 
         <p class="meta">
