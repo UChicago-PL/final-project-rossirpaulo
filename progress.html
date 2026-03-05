@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Progress Report: HaskProto</title>
+    <style>
+        body {
+            font-family: Georgia, "Times New Roman", serif;
+            max-width: 750px;
+            margin: 2em auto;
+            line-height: 1.6;
+            color: #222;
+        }
+
+        h1 {
+            font-size: 1.6em;
+            border-bottom: 2px solid #333;
+            padding-bottom: 0.3em;
+        }
+
+        h2 {
+            font-size: 1.25em;
+            margin-top: 1.5em;
+        }
+
+        h3 {
+            font-size: 1.05em;
+            margin-top: 1.2em;
+        }
+
+        code,
+        pre {
+            font-family: "Courier New", monospace;
+            background: #f4f4f4;
+            padding: 0.15em 0.3em;
+            border-radius: 3px;
+        }
+
+        pre {
+            padding: 0.8em 1em;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin: 1em 0;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 0.4em 0.7em;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .meta {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        nav.doc-nav {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 0.9em;
+            padding: 0.5em 0;
+            margin-bottom: 1em;
+            border-bottom: 1px solid #ddd;
+            color: #555;
+        }
+
+        nav.doc-nav a {
+            color: #333;
+            text-decoration: none;
+            margin: 0 0.4em;
+        }
+
+        nav.doc-nav a:hover {
+            text-decoration: underline;
+        }
+
+        nav.doc-nav .current {
+            font-weight: bold;
+            color: #000;
+        }
+
+        .done {
+            color: #2a7a2a;
+        }
+
+        .wip {
+            color: #b8860b;
+        }
+
+        .todo {
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="doc-nav">
+        <a href="proposal.html">Proposal</a> &middot;
+        <span class="current">Progress Report</span>
+    </nav>
+
+    <h1>HaskProto: Progress Report</h1>
+
+    <p class="meta">
+        CMSC 22300 &mdash; Functional Programming &mdash; Winter 2026<br />
+        Paulo R. Rodrigues &mdash; Solo Project
+    </p>
+
+    <h2>Summary</h2>
+
+    <p>
+        All <strong>Easy (Core deliverable)</strong> milestones from the
+        proposal are complete and working. The project currently parses
+        <code>.hproto</code> schema files into a strongly-typed AST,
+        validates them for structural errors, pretty-prints them back to
+        text, and defines a dynamic <code>Value</code> type for runtime
+        representation of schema-typed data. A CLI tool with a
+        <code>validate</code> subcommand ties these pieces together.
+    </p>
+
+    <p>
+        The codebase compiles with zero warnings under
+        <code>ghc-options: -Wall</code>.
+    </p>
+
+    <h2>What Is Done</h2>
+
+    <h3>1. Schema AST (<code>HaskProto.Schema</code>)</h3>
+
+    <p>
+        Defines the core algebraic data types that represent a parsed
+        schema: <code>Schema</code>, <code>MessageDef</code>,
+        <code>FieldDef</code>, <code>FieldType</code>,
+        <code>PrimTy</code>, and <code>Modifier</code>. These types mirror
+        the structure proposed, with all eight primitive types
+        (<code>int32</code>, <code>int64</code>, <code>uint32</code>,
+        <code>uint64</code>, <code>bool</code>, <code>string</code>,
+        <code>bytes</code>, <code>double</code>) and three field modifiers
+        (<code>Required</code>, <code>Optional</code>,
+        <code>Repeated</code>).
+    </p>
+
+    <h3>2. Schema Parser (<code>HaskProto.Parser</code>)</h3>
+
+    <p>
+        A hand-written parser using
+        <code>Text.ParserCombinators.ReadP</code>, as covered in the course
+        material. The parser handles the full <code>.hproto</code> syntax:
+        message definitions with named fields, type annotations, modifier
+        keywords, and <code>@n</code> tag numbers. It uses
+        <code>&lt;$&gt;</code> for functor mapping, <code>*&gt;</code> for
+        sequencing with discarded results, <code>(&lt;++)</code> for
+        left-biased choice, and <code>munch</code>/<code>munch1</code> for
+        efficient character-class scanning.
+    </p>
+
+    <p>Example input that parses successfully:</p>
+
+    <pre>
+message Person {
+  name: string          @1
+  age: int32            @2
+  email: optional string @3
+  addresses: repeated Address @4
+}
+
+message Address {
+  street: string  @1
+  city: string    @2
+  zip: int32      @3
+}</pre>
+
+    <h3>3. Schema Validation (<code>HaskProto.Validate</code>)</h3>
+
+    <p>
+        Checks a parsed schema for five categories of errors:
+    </p>
+
+    <ul>
+        <li>Duplicate message names</li>
+        <li>Duplicate field names within a message</li>
+        <li>Duplicate field tags within a message</li>
+        <li>Unresolved type references (a field referencing a message
+            name that does not exist in the schema)</li>
+        <li>Invalid tags (non-positive tag numbers)</li>
+    </ul>
+
+    <p>
+        Validation collects all errors rather than stopping at the first,
+        returning them as a list. Duplicate detection uses
+        <code>Data.Map</code> for counting occurrences, and reference
+        resolution uses <code>Data.Set</code> for efficient membership
+        checks.
+    </p>
+
+    <h3>4. Pretty Printer (<code>HaskProto.Pretty</code>)</h3>
+
+    <p>
+        Reconstructs <code>.hproto</code> text from the AST, producing
+        clean, indented output. This serves as a roundtrip check: parse a
+        file, pretty-print the result, and confirm it matches the original
+        structure.
+    </p>
+
+    <h3>5. Dynamic Values (<code>HaskProto.Value</code>)</h3>
+
+    <p>
+        Defines the <code>Value</code> algebraic data type with
+        constructors for all eight primitive types, message values
+        (association lists of field name/value pairs), repeated values
+        (lists), and <code>VNull</code> for absent optional fields.
+        Provides helper functions for field lookup and inspection:
+        <code>lookupField</code>, <code>hasField</code>,
+        <code>messageFields</code>, and <code>repeatedValues</code>.
+    </p>
+
+    <h3>6. CLI Entry Point (<code>Main</code>)</h3>
+
+    <p>
+        A command-line tool that currently supports:
+    </p>
+
+    <pre>
+haskproto validate schema.hproto</pre>
+
+    <p>
+        This parses the given file, runs validation, and either reports
+        errors or prints the validated schema in pretty-printed form.
+    </p>
+
+    <h2>Example Session</h2>
+
+    <p>Validating a correct schema:</p>
+
+    <pre>
+$ cabal run haskproto -- validate examples/person.hproto
+Schema is valid.
+
+Pretty-printed:
+message Person {
+  name: string @1
+  age: int32 @2
+  email: optional string @3
+  addresses: repeated Address @4
+}
+
+message Address {
+  street: string @1
+  city: string @2
+  zip: int32 @3
+}</pre>
+
+    <p>Validating a schema with errors:</p>
+
+    <pre>
+$ cabal run haskproto -- validate examples/bad.hproto
+Validation errors:
+  - DuplicateFieldName "Person" "name"
+  - DuplicateTag "Person" 1
+  - UnresolvedTypeRef "Person" "addr" "Nowhere"</pre>
+
+    <h2>Next Steps</h2>
+
+    <p>
+        The immediate next step is implementing the binary wire format
+        (<code>HaskProto.Wire</code>). This will involve:
+    </p>
+
+    <ul>
+        <li>Variable-length integer (varint) encoding and decoding</li>
+        <li>
+            A tag-length-value (TLV) wire format where each field is
+            prefixed by its tag number and wire type
+        </li>
+        <li>
+            A monad transformer stack
+            (<code>StateT</code>/<code>ReaderT</code>/<code>ExceptT</code>)
+            for threading byte offsets, schema context, and error handling
+            through the encoder and decoder
+        </li>
+    </ul>
+
+    <p>
+        After the wire format is working, the plan is to add JSON
+        integration (using <code>aeson</code>) for a full
+        JSON &rarr; Value &rarr; Binary &rarr; Value &rarr; JSON roundtrip,
+        followed by QuickCheck property tests to verify the roundtrip
+        invariant.
+    </p>
+</body>
+
+</html>
