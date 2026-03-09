@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Final Report: HaskProto</title>
+    <style>
+        body {
+            font-family: Georgia, "Times New Roman", serif;
+            max-width: 750px;
+            margin: 2em auto;
+            line-height: 1.6;
+            color: #222;
+        }
+
+        h1 {
+            font-size: 1.6em;
+            border-bottom: 2px solid #333;
+            padding-bottom: 0.3em;
+        }
+
+        h2 {
+            font-size: 1.25em;
+            margin-top: 1.5em;
+        }
+
+        h3 {
+            font-size: 1.05em;
+            margin-top: 1.2em;
+        }
+
+        code,
+        pre {
+            font-family: "Courier New", monospace;
+            background: #f4f4f4;
+            padding: 0.15em 0.3em;
+            border-radius: 3px;
+        }
+
+        pre {
+            padding: 0.8em 1em;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin: 1em 0;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 0.4em 0.7em;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .meta {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        nav.doc-nav {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 0.9em;
+            padding: 0.5em 0;
+            margin-bottom: 1em;
+            border-bottom: 1px solid #ddd;
+            color: #555;
+        }
+
+        nav.doc-nav a {
+            color: #333;
+            text-decoration: none;
+            margin: 0 0.4em;
+        }
+
+        nav.doc-nav a:hover {
+            text-decoration: underline;
+        }
+
+        nav.doc-nav .current {
+            font-weight: bold;
+            color: #000;
+        }
+
+        .done {
+            color: #2a7a2a;
+        }
+
+        .partial {
+            color: #b8860b;
+        }
+
+        .notdone {
+            color: #888;
+        }
+
+        .size-note {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: -0.5em;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="doc-nav">
+        <a href="proposal.html">Proposal</a> &middot;
+        <a href="progress.html">Progress Report</a> &middot;
+        <span class="current">Final Report</span>
+    </nav>
+
+    <h1>HaskProto: Final Report</h1>
+
+    <p class="meta">
+        CMSC 22300 &mdash; Functional Programming &mdash; Winter 2026<br />
+        Paulo R. Rodrigues &mdash; Solo Project
+    </p>
+
+    <h2>Overview</h2>
+
+    <p>
+        <strong>HaskProto</strong> is a schema-driven binary serialization
+        system written entirely in Haskell. Given a human-readable
+        <code>.hproto</code> schema file, it can parse, validate, and
+        pretty-print the schema; encode structured data from JSON into a
+        compact binary wire format; and decode binary data back into JSON.
+        The system demonstrates a broad range of functional programming
+        concepts from the course, including parser combinators, algebraic
+        data types, and monad transformers.
+    </p>
+
+    <h2>Architecture</h2>
+
+    <p>
+        The project is structured as a Cabal package with two
+        components: a library (seven modules) and an executable
+        (CLI tool).
+    </p>
+
+    <table>
+        <tr>
+            <th>Module</th>
+            <th>Role</th>
+        </tr>
+        <tr>
+            <td><code>HaskProto.Schema</code></td>
+            <td>AST types and shared <code>SchemaCtx</code> helper</td>
+        </tr>
+        <tr>
+            <td><code>HaskProto.Parser</code></td>
+            <td><code>ReadP</code> parser for <code>.hproto</code> files</td>
+        </tr>
+        <tr>
+            <td><code>HaskProto.Validate</code></td>
+            <td>Schema validation (duplicates, references, tags)</td>
+        </tr>
+        <tr>
+            <td><code>HaskProto.Pretty</code></td>
+            <td>Pretty-printer: AST &rarr; <code>.hproto</code> text</td>
+        </tr>
+        <tr>
+            <td><code>HaskProto.Value</code></td>
+            <td>Dynamic <code>Value</code> type for runtime data</td>
+        </tr>
+        <tr>
+            <td><code>HaskProto.Wire</code></td>
+            <td>Binary TLV encoder/decoder with MTL stack</td>
+        </tr>
+        <tr>
+            <td><code>HaskProto.Json</code></td>
+            <td>JSON integration via <code>aeson</code> and schema-guided conversion</td>
+        </tr>
+        <tr>
+            <td><code>Main</code> (app)</td>
+            <td>CLI: <code>validate</code>, <code>encode</code>, <code>decode</code></td>
+        </tr>
+    </table>
+
+    <h2>Milestones</h2>
+
+    <h3>Easy (Core deliverable) &mdash; <span class="done">Complete</span></h3>
+    <ul>
+        <li class="done">Parse <code>.hproto</code> schemas into an AST using <code>ReadP</code></li>
+        <li class="done">Validate schemas (duplicate names, unresolved references, tag conflicts)</li>
+        <li class="done">Pretty-print schemas back from the AST</li>
+        <li class="done">Define the dynamic <code>Value</code> type and basic construction/inspection</li>
+    </ul>
+
+    <h3>Medium (Expected deliverable) &mdash; <span class="partial">Mostly complete</span></h3>
+    <ul>
+        <li class="done">Binary TLV encoding and decoding with varint support</li>
+        <li class="done">Full monad transformer stack for encode/decode</li>
+        <li class="done">JSON &harr; Value &harr; Binary roundtrip pipeline</li>
+        <li class="notdone">QuickCheck properties for encode/decode roundtrips (not implemented; see below)</li>
+        <li class="done">CLI tool with <code>validate</code>, <code>encode</code>,
+            <code>decode</code> subcommands
+        </li>
+    </ul>
+
+    <h3>Challenge (Stretch goals) &mdash; <span class="partial">Partial</span></h3>
+    <ul>
+        <li class="done">Nested message encoding with recursive schema support</li>
+        <li class="notdone">Schema evolution: diff two schemas, classify compatibility</li>
+        <li class="notdone">Cross-version decoding with an older/newer schema</li>
+        <li class="notdone"><code>inspect</code> subcommand: annotated hex dump</li>
+    </ul>
+
+    <h2>Technical Details</h2>
+
+    <h3>1. Schema Parser (<code>HaskProto.Parser</code>)</h3>
+
+    <p>
+        The <code>.hproto</code> parser uses
+        <code>Text.ParserCombinators.ReadP</code>, the parser combinator
+        library covered in the course material. It parses message
+        definitions containing named, typed, tagged fields with optional
+        modifiers (<code>optional</code>, <code>repeated</code>). The
+        parser uses <code>&lt;$&gt;</code> for functor mapping,
+        <code>*&gt;</code> for sequencing with discarded results,
+        <code>(&lt;++)</code> for left-biased choice, and
+        <code>munch</code>/<code>munch1</code> for efficient
+        character-class scanning. Message names must be capitalized;
+        field names must begin with a lowercase letter.
+    </p>
+
+    <h3>2. Schema Validation (<code>HaskProto.Validate</code>)</h3>
+
+    <p>
+        After parsing, the schema is validated for five categories of
+        structural errors: duplicate message names, duplicate field names
+        within a message, duplicate field tags within a message,
+        unresolved type references, and invalid (non-positive) tags. The
+        validator collects <em>all</em> errors rather than stopping at
+        the first, using <code>Data.Map</code> for counting occurrences
+        and <code>Data.Set</code> for efficient membership checks during
+        reference resolution.
+    </p>
+
+    <h3>3. Dynamic Values (<code>HaskProto.Value</code>)</h3>
+
+    <p>
+        Since Haskell's type system does not allow generating new types
+        at runtime, HaskProto works with a dynamic value
+        representation:
+    </p>
+
+    <pre>
+data Value
+  = VInt32 Int32    | VInt64 Int64
+  | VUInt32 Word32  | VUInt64 Word64
+  | VBool Bool      | VDouble Double
+  | VString String  | VBytes [Word8]
+  | VMessage [(String, Value)]
+  | VRepeated [Value]
+  | VNull</pre>
+
+    <p>
+        Helper functions (<code>lookupField</code>,
+        <code>hasField</code>, <code>messageFields</code>,
+        <code>repeatedValues</code>) provide typed inspection of values
+        without requiring pattern matching at every call site.
+    </p>
+
+    <h3>4. Binary Wire Format (<code>HaskProto.Wire</code>)</h3>
+
+    <p>
+        The encoding follows a tag-length-value (TLV) wire format
+        inspired by Protocol Buffers. Each field is prefixed by a key
+        that encodes the field's tag number and wire type:
+    </p>
+
+    <pre>
+field key = (tag &lt;&lt; 3) | wire_type
+
+Wire type 0 (Varint):  int32, int64, uint32, uint64, bool
+Wire type 1 (64-bit):  double
+Wire type 2 (Len-del): string, bytes, nested messages</pre>
+
+    <p>
+        <strong>Varint encoding</strong> stores unsigned integers using
+        7 bits per byte, with the MSB as a continuation flag. This is
+        space-efficient for small values: the number 150 takes two bytes
+        instead of four.
+    </p>
+
+    <p>
+        <strong>ZigZag encoding</strong> maps signed integers to
+        unsigned ones so that values near zero (positive or negative)
+        produce small varints. For example, &minus;1 maps to 1, 1 maps
+        to 2, &minus;2 maps to 3, and so on.
+    </p>
+
+    <p>
+        <strong>Nested messages</strong> are encoded recursively: the
+        inner message is serialized first, then written as a
+        length-delimited field.
+    </p>
+
+    <h3>5. Monad Transformer Stack</h3>
+
+    <p>
+        Both the encoder and decoder operate in an MTL monad transformer
+        stack that combines three effects:
+    </p>
+
+    <pre>
+type EncodeM a = StateT [Word8] (ReaderT SchemaCtx (Except WireError)) a
+type DecodeM a = StateT [Word8] (ReaderT SchemaCtx (Except WireError)) a</pre>
+
+    <ul>
+        <li>
+            <code>StateT [Word8]</code> &mdash; accumulates output bytes
+            during encoding; tracks remaining input bytes during
+            decoding
+        </li>
+        <li>
+            <code>ReaderT SchemaCtx</code> &mdash; provides read-only
+            access to the schema context (a map from message name to
+            definition), threaded implicitly to all encode/decode
+            functions via <code>ask</code>
+        </li>
+        <li>
+            <code>Except WireError</code> &mdash; structured error
+            handling for type mismatches, truncated input, unknown
+            messages, and invalid wire types
+        </li>
+    </ul>
+
+    <p>
+        The public API unwraps the stack cleanly:
+    </p>
+
+    <pre>
+encodeMessage :: Schema -> String -> Value -> Either WireError [Word8]
+decodeMessage :: Schema -> String -> [Word8] -> Either WireError Value</pre>
+
+    <h3>6. JSON Integration (<code>HaskProto.Json</code>)</h3>
+
+    <p>
+        JSON parsing and rendering are handled by the
+        <code>aeson</code> library, the standard Haskell JSON package.
+        The module provides thin wrappers (<code>parseJson</code>,
+        <code>renderJson</code>) that convert between
+        <code>String</code> and <code>Data.Aeson.Value</code>, plus
+        conversion functions (<code>valueToJson</code>,
+        <code>jsonToValue</code>) that bridge between aeson's
+        <code>Value</code> and our own dynamic <code>Value</code> type.
+    </p>
+
+    <p>
+        <strong>Schema-guided conversion</strong> is the key design
+        decision: a raw JSON number like <code>7</code> is ambiguous
+        (it could be <code>int32</code>, <code>uint64</code>,
+        <code>double</code>, etc.), so <code>jsonToValue</code> consults
+        the <code>SchemaCtx</code> to determine the correct
+        <code>Value</code> constructor for each field. The conversion
+        functions pattern-match on aeson's constructors
+        (<code>Object</code>, <code>Array</code>, <code>String</code>,
+        <code>Number</code>, <code>Bool</code>, <code>Null</code>) and
+        use <code>Data.Scientific</code> for safe numeric coercions.
+    </p>
+
+    <h3>7. Testing</h3>
+
+    <p>
+        The proposal planned a QuickCheck test suite with property-based
+        roundtrip tests. In practice, building a comprehensive automated
+        test suite proved more extensive than anticipated: it would
+        require custom <code>Gen</code> generators for every schema
+        shape, careful handling of floating-point precision in JSON
+        roundtrips, and a test harness wiring together the full
+        encode/decode pipeline. This remains as future work.
+    </p>
+
+    <p>
+        That said, correctness was verified through deliberate manual
+        debugging. This process uncovered two real bugs: reversed
+        ordering of repeated fields during decoding (caused by
+        <code>insertWith (++)</code> prepending instead of appending),
+        and a failure to handle JSON <code>null</code> for optional
+        fields during schema-guided conversion. Both were fixed by
+        tracing through the encode/decode pipeline with the example
+        schema and data.
+    </p>
+
+    <h3>8. CLI Tool (<code>app/Main.hs</code>)</h3>
+
+    <p>
+        The command-line interface exposes three subcommands:
+    </p>
+
+    <pre>
+haskproto validate &lt;schema.hproto&gt;
+haskproto encode &lt;schema&gt; &lt;Message&gt; &lt;input.json&gt; &lt;output.bin&gt;
+haskproto decode &lt;schema&gt; &lt;Message&gt; &lt;input.bin&gt;</pre>
+
+    <p>
+        <code>validate</code> parses and checks a schema, reporting all
+        errors or pretty-printing the result. <code>encode</code> reads
+        JSON, converts it to a <code>Value</code> using the schema for
+        type guidance, and writes binary. <code>decode</code> reads
+        binary, reconstructs a <code>Value</code>, and prints JSON to
+        stdout.
+    </p>
+
+    <h2>Example: End-to-End Roundtrip</h2>
+
+    <p>Given this schema (<code>examples/person.hproto</code>):</p>
+
+    <pre>
+message Person {
+  name: string          @1
+  age: int32            @2
+  email: optional string @3
+  addresses: repeated Address @4
+}
+
+message Address {
+  street: string  @1
+  city: string    @2
+  zip: string     @3
+}</pre>
+
+    <p>And this input (<code>examples/person.json</code>):</p>
+
+    <pre>
+{
+  "name": "Paulo",
+  "age": 24,
+  "email": "paulorossi@uchicago.edu",
+  "addresses": [
+    {
+      "street": "5454. S. Shore Dr., Apt. 1012",
+      "city": "Chicago",
+      "zip": "60615"
+    },
+    {
+      "street": "R. Inhambu 66",
+      "city": "Sao Paulo",
+      "zip": "04520010"
+    }
+  ]
+}</pre>
+
+    <p>Encoding produces a compact 121-byte binary file (vs. 298 bytes
+        of JSON, a 2.5&times; reduction):</p>
+
+    <pre>
+$ cabal run haskproto -- encode examples/person.hproto Person \
+    examples/person.json examples/person.bin
+
+$ wc -c examples/person.bin
+     121 examples/person.bin</pre>
+
+    <p>Decoding recovers the original data:</p>
+
+    <pre>
+$ cabal run haskproto -- decode examples/person.hproto Person examples/person.bin
+{"addresses":[{"city":"Chicago","street":"5454. S. Shore Dr., Apt. 1012",
+ "zip":"60615"},{"city":"Sao Paulo","street":"R. Inhambu 66",
+ "zip":"04520010"}],"age":24,"email":"paulorossi@uchicago.edu",
+ "name":"Paulo"}</pre>
+
+    <p class="size-note">
+        (Output above is wrapped for display; the actual output is a
+        single line of compact JSON.)
+    </p>
+
+    <h2>Concepts Employed</h2>
+
+    <table>
+        <tr>
+            <th>Concept</th>
+            <th>Where / How</th>
+        </tr>
+        <tr>
+            <td>Algebraic Data Types</td>
+            <td>
+                Schema AST (<code>Schema</code>, <code>MessageDef</code>,
+                <code>FieldDef</code>, <code>FieldType</code>,
+                <code>PrimTy</code>, <code>Modifier</code>), dynamic
+                <code>Value</code>, <code>WireError</code>,
+                <code>ValidationError</code>
+            </td>
+        </tr>
+        <tr>
+            <td>Parser Combinators (<code>ReadP</code>)</td>
+            <td>
+                Hand-written parser for <code>.hproto</code> schemas
+            </td>
+        </tr>
+        <tr>
+            <td>Monad Transformers (MTL)</td>
+            <td>
+                <code>StateT</code>/<code>ReaderT</code>/<code>Except</code>
+                stack for both encoding and decoding
+            </td>
+        </tr>
+        <tr>
+            <td>State Monad</td>
+            <td>
+                Byte accumulation (encode), byte consumption (decode)
+            </td>
+        </tr>
+        <tr>
+            <td>Reader Monad</td>
+            <td>
+                Schema context threaded implicitly through
+                encode/decode via <code>ask</code>
+            </td>
+        </tr>
+        <tr>
+            <td>Error Handling</td>
+            <td>
+                <code>Except WireError</code> for structured encode/decode
+                errors; <code>Either String</code> for JSON conversion
+            </td>
+        </tr>
+        <tr>
+            <td>Type Classes</td>
+            <td>
+                <code>Show</code>, <code>Eq</code>, <code>Ord</code>
+                across all ADTs
+            </td>
+        </tr>
+        <tr>
+            <td>Higher-Order Functions</td>
+            <td>
+                <code>map</code>, <code>mapM</code>,
+                <code>mapM_</code>, <code>concatMap</code>,
+                <code>foldl</code>, <code>foldr</code>,
+                <code>filter</code> throughout
+            </td>
+        </tr>
+        <tr>
+            <td>Pattern Matching</td>
+            <td>
+                Pervasive: wire type dispatch, value encoding/decoding,
+                JSON conversion, field modifier handling
+            </td>
+        </tr>
+        <tr>
+            <td>Bitwise Operations</td>
+            <td>
+                Varint encoding/decoding, ZigZag encoding, field key
+                construction, IEEE 754 double conversion
+            </td>
+        </tr>
+        <tr>
+            <td><code>Data.Map</code> / <code>Data.Set</code></td>
+            <td>
+                Schema context lookup, validation duplicate detection,
+                decoded field accumulation
+            </td>
+        </tr>
+    </table>
+
+    <h2>Deviations from the Proposal</h2>
+
+    <ul>
+        <li>
+            <strong>Binary accumulation</strong>: uses
+            <code>[Word8]</code> lists instead of
+            <code>ByteString.Builder</code>. Simpler and clearer for
+            the message sizes involved; <code>bytestring</code> is only
+            used for file I/O in the CLI.
+        </li>
+        <li>
+            <strong>Value type</strong>: uses <code>String</code> and
+            <code>[Word8]</code> instead of <code>Text</code> and
+            <code>ByteString</code>, keeping the implementation
+            consistent with the rest of the course material.
+        </li>
+        <li>
+            <strong>Automated testing</strong>: the proposal planned
+            QuickCheck roundtrip properties, but building a
+            comprehensive property-based test suite turned out to be
+            more extensive than expected. Correctness was instead
+            verified through deliberate manual debugging.
+        </li>
+        <li>
+            <strong>Schema evolution</strong>: not implemented. Of the
+            Challenge goals, nested message encoding is done but the
+            evolution engine, cross-version decoding, and
+            <code>inspect</code> subcommand remain as future work.
+        </li>
+    </ul>
+
+    <h2>Lessons Learned</h2>
+
+    <ul>
+        <li>
+            <strong>ReadP is effective for custom grammars.</strong>
+            Writing the <code>.hproto</code> parser with
+            <code>ReadP</code> demonstrated how a small set of
+            combinators (<code>char</code>, <code>string</code>,
+            <code>munch</code>, <code>(&lt;++)</code>,
+            <code>sepBy</code>, <code>option</code>) can handle a
+            complete grammar. For standard formats like JSON,
+            using a proven library like <code>aeson</code> is the
+            right choice.
+        </li>
+        <li>
+            <strong>The MTL stack pays off.</strong> Threading the schema
+            context via <code>ReaderT</code> and error handling via
+            <code>Except</code> meant that individual encode/decode
+            functions could focus purely on their logic. Adding a new
+            primitive type required changes in exactly two places
+            (encode and decode pattern matches), with the plumbing
+            handled by the monad stack.
+        </li>
+        <li>
+            <strong>ZigZag encoding is elegant.</strong> The mapping
+            <code>zigzag(n) = (n &lt;&lt; 1) xor (n &gt;&gt; 63)</code>
+            is a single-line function that makes varints efficient for
+            signed values near zero. It is a great example of how bit-level
+            thinking and high-level Haskell work together cleanly and elegantly.
+        </li>
+    </ul>
+
+    <h2>How to Build and Run</h2>
+
+    <pre>
+$ cd final-project-rossirpaulo
+
+# Build everything
+$ cabal build all
+
+# Try the CLI
+$ cabal run haskproto -- validate examples/person.hproto
+$ cabal run haskproto -- encode examples/person.hproto Person \
+    examples/person.json examples/person.bin
+$ cabal run haskproto -- decode examples/person.hproto Person \
+    examples/person.bin</pre>
+</body>
+
+</html>
