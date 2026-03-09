@@ -1,11 +1,13 @@
 module HaskProto.Schema where
 
--- schema
--- A Schema is a collection of message definitions.
+import qualified Data.Map as M
+
+-- Schema
+-- A collection of message definitions.
 data Schema = Schema [MessageDef]
   deriving (Show, Eq)
 
--- messageDef
+-- MessageDef
 -- A message has a name and a list of fields.
 data MessageDef = MessageDef
   { msgName :: String,
@@ -13,7 +15,7 @@ data MessageDef = MessageDef
   }
   deriving (Show, Eq)
 
--- fieldDef
+-- FieldDef
 -- A field has a name, type, modifier, and numeric tag.
 data FieldDef = FieldDef
   { fieldName :: String,
@@ -23,15 +25,14 @@ data FieldDef = FieldDef
   }
   deriving (Show, Eq)
 
--- fieldType
--- Field types: either a primitive or a reference to another
--- message by name.
+-- FieldType
+-- Either a primitive or a reference to another message.
 data FieldType
   = PrimType PrimTy
   | RefType String
   deriving (Show, Eq)
 
--- primTy
+-- PrimTy
 -- Supported primitive types.
 data PrimTy
   = TInt32
@@ -44,10 +45,20 @@ data PrimTy
   | TDouble
   deriving (Show, Eq, Ord)
 
--- modifier
+-- Modifier
 -- Field modifiers.
 data Modifier
   = Required
   | Optional
   | Repeated
   deriving (Show, Eq, Ord)
+
+-- SchemaCtx
+-- Maps message names to their definitions.
+-- Shared by Wire and Json modules.
+type SchemaCtx = M.Map String MessageDef
+
+-- buildContext
+buildContext :: Schema -> SchemaCtx
+buildContext (Schema msgs) =
+  M.fromList [(msgName m, m) | m <- msgs]
