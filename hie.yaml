@@ -1,4 +1,6 @@
 cradle:
   cabal:
     - path: "src"
+      component: "lib:haskproto"
+    - path: "app"
       component: "exe:haskproto"
