@@ -28,20 +28,17 @@ prettyField field =
     ++ show (fieldTag field)
 
 -- prettyModifier
--- Pretty-print a modifier (empty string for Required).
 prettyModifier :: Modifier -> String
 prettyModifier Required = ""
 prettyModifier Optional = "optional "
 prettyModifier Repeated = "repeated "
 
 -- prettyType
--- Pretty-print a field type.
 prettyType :: FieldType -> String
 prettyType (PrimType prim) = prettyPrim prim
 prettyType (RefType name) = name
 
 -- prettyPrim
--- Pretty-print a primitive type.
 prettyPrim :: PrimTy -> String
 prettyPrim TInt32 = "int32"
 prettyPrim TInt64 = "int64"

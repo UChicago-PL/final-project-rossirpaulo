@@ -30,8 +30,7 @@ data Value
 
 -- lookupField
 -- Look up a field by name in a VMessage value.
--- Returns Nothing for VNull, non-message values, or
--- missing fields.
+-- Returns Nothing for non-message values or missing fields.
 lookupField :: String -> Value -> Maybe Value
 lookupField name (VMessage fields) =
   case filter (\(n, _) -> n == name) fields of

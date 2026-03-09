@@ -24,7 +24,6 @@ validateSchema (Schema msgs) =
         ++ concatMap (checkMessage messageNames) msgs
 
 -- checkDuplicateMessages
--- Check for duplicate message names.
 checkDuplicateMessages :: [MessageDef] -> [ValidationError]
 checkDuplicateMessages msgs =
   let names = map msgName msgs
@@ -43,7 +42,6 @@ checkMessage messageNames msg =
         ++ checkValidTags name fields
 
 -- checkDuplicateFieldNames
--- Check for duplicate field names within a message.
 checkDuplicateFieldNames :: String -> [FieldDef] -> [ValidationError]
 checkDuplicateFieldNames msgN fields =
   let names = map fieldName fields
@@ -51,7 +49,6 @@ checkDuplicateFieldNames msgN fields =
    in map (DuplicateFieldName msgN) duplicates
 
 -- checkDuplicateTags
--- Check for duplicate tags within a message.
 checkDuplicateTags :: String -> [FieldDef] -> [ValidationError]
 checkDuplicateTags msgN fields =
   let tags = map fieldTag fields
@@ -83,7 +80,6 @@ checkValidTags msgN fields =
       else []
 
 -- findDuplicates
--- find duplicate elements in a list.
 findDuplicates :: (Ord a) => [a] -> [a]
 findDuplicates xs =
   let counts = M.fromListWith (+) [(x, 1 :: Int) | x <- xs]
