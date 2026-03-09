@@ -1,0 +1,17 @@
+{
+  "name": "Paulo",
+  "age": 24,
+  "email": "paulorossi@uchicago.edu",
+  "addresses": [
+    {
+      "street": "5454. S. Shore Dr., Apt. 1012",
+      "city": "Chicago",
+      "zip": "60615"
+    },
+    {
+      "street": "R. Inhambu 66",
+      "city": "Sao Paulo",
+      "zip": "04520010"
+    }
+  ]
+}

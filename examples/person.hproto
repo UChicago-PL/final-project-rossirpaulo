@@ -8,5 +8,5 @@ message Person {
 message Address {
   street: string  @1
   city: string    @2
-  zip: int32      @3
+  zip: string      @3
 }
