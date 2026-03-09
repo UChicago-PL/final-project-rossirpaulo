@@ -20,6 +20,7 @@ parseSchema input =
     [(schema, "")] -> Just schema
     _ -> Nothing
 
+-- schemaP
 schemaP :: ReadP Schema
 schemaP = do
   skipSpaces
@@ -54,9 +55,8 @@ fieldDef = do
   tag <- tagP
   return (FieldDef fname ftype modifier tag)
 
-------------------------------------------------------------
 -- modifierP
--- Parse a modifier.
+-- Parse a modifier keyword, or default to Required.
 modifierP :: ReadP Modifier
 modifierP =
   (string "optional" *> skipSpaces1 *> return Optional)
@@ -64,14 +64,14 @@ modifierP =
     <++ return Required
 
 -- fieldTypeP
--- Parse a field type.
+-- Parse a field type (primitive or message reference).
 fieldTypeP :: ReadP FieldType
 fieldTypeP =
   (PrimType <$> primTypeP)
     <++ (RefType <$> parseMessageName)
 
 -- primTypeP
--- Parse a primitive type.
+-- Parse a primitive type keyword.
 primTypeP :: ReadP PrimTy
 primTypeP =
   (string "int32" *> return TInt32)
@@ -84,7 +84,7 @@ primTypeP =
     <++ (string "double" *> return TDouble)
 
 -- tagP
--- Parse a tag.
+-- Parse a @n tag annotation.
 tagP :: ReadP Int
 tagP = do
   _ <- char '@'
@@ -92,7 +92,7 @@ tagP = do
   return (read digits)
 
 -- parseMessageName
--- Parse a message name.
+-- Uppercase-initial identifier.
 parseMessageName :: ReadP String
 parseMessageName = do
   first <- satisfy isUpper
@@ -100,7 +100,7 @@ parseMessageName = do
   return (first : rest)
 
 -- parseFieldName
--- Parse a field name.
+-- Lowercase-initial identifier.
 parseFieldName :: ReadP String
 parseFieldName = do
   first <- satisfy isLower
